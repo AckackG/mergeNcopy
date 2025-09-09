@@ -7,6 +7,7 @@
 - 将 py 和 bat 放到任意文件夹内。
 - **直接将任意文件或文件夹拖拽到 `mNc.bat` 文件上即可执行。**
 - cmd 运行 shell:sendto, 将 bat 文件的快捷方式粘贴进去，即可以“右键-发送到”的方式调用
+<img width="930" height="466" alt="image" src="https://github.com/user-attachments/assets/09883392-7b97-4fb9-8641-5a0b840b435b" />
 
 ## 主要特性
 
@@ -33,3 +34,4 @@ pip install pyperclip
 - `MAX_FILE_SIZE_BYTES`: 修改要跳过的大文件阈值。
 - `MAX_PATH_DISPLAY_LEN`: 修改实时输出时路径的显示长度。
 - `NON_PRINTABLE_THRESHOLD`: 调整乱码检测的灵敏度。
+
