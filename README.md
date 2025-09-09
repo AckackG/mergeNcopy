@@ -21,7 +21,8 @@
 
 ## 依赖
 
-需要全局安装 `pyperclip` 库：```bash
+需要全局安装 pyperclip 库：
+```bash
 pip install pyperclip
 ```
 
