@@ -1,4 +1,3 @@
-# FILE: F:\program5\copyNmerge\cNm_path_optimized.py
 import sys
 import os
 import time
@@ -19,6 +18,69 @@ MAX_PATH_DISPLAY_LEN = 80
 # 目的是为了防止因意外拖入超大文件（如视频、数据库）导致程序内存溢出或长时间无响应。
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
 
+# [项目临时文件过滤]
+# 是否忽略常见的项目临时文件和缓存文件
+IGNORE_TEMP_FILES = True
+
+# 需要忽略的临时文件模式（文件名或扩展名）
+TEMP_FILE_PATTERNS = {
+    # Python 临时文件
+    '.pyc', '.pyo', '.pyd', '__pycache__',
+    # JavaScript/Node 临时文件
+    '.DS_Store', 'Thumbs.db',
+    # 编译产物
+    '.o', '.obj', '.class',
+    # 日志文件
+    '.log',
+    # 临时文件
+    '.tmp', '.temp', '.swp', '.swo', '~',
+    # 锁文件
+    '.lock', 'package-lock.json', 'yarn.lock', 'poetry.lock', 'Pipfile.lock',
+}
+
+# [排除路径配置]
+# 需要排除的目录路径列表（支持多级路径）
+# 例如：'venv/lib' 会排除所有 venv 目录下的 lib 子目录
+# 但不会排除 src/lib 这样的路径
+EXCLUDED_PATHS = [
+    # Python 相关
+    'venv', 'env', '.venv', '.env',
+    'venv/lib', 'env/lib', '.venv/lib',
+    '__pycache__',
+    '.pytest_cache',
+    '.tox',
+    'dist', 'build',
+    '*.egg-info',
+    '.mypy_cache',
+    '.ruff_cache',
+    
+    # JavaScript/Node 相关
+    'node_modules',
+    '.npm',
+    '.yarn',
+    'bower_components',
+    'dist', 'build',
+    '.next',
+    '.nuxt',
+    'coverage',
+    
+    # 版本控制
+    '.git',
+    '.svn',
+    '.hg',
+    
+    # IDE 配置
+    '.idea',
+    '.vscode',
+    '.vs',
+    '*.code-workspace',
+    
+    # 其他
+    '.cache',
+    'tmp', 'temp',
+    'logs',
+]
+
 # [智能识别逻辑]
 # 对于具有可疑扩展名（如.docx, .pdf）的文件，即使成功解码为文本，
 # 如果其内容长度小于此值（30个字符），我们仍然认为它是一次错误的解码，并将其归类为非文本文件。
@@ -37,8 +99,9 @@ GARBAGE_CHECK_SAMPLE_SIZE = 8192
 # 这是为了防止对本身内容就很少的短文本文件（如只有一个单词的txt）进行误判。
 GARBAGE_CHECK_MIN_LEN = 100
 
-# --- ---- ---
-
+# [高级功能 - 文本读取配置]
+# 可疑的二进制文件扩展名列表
+# 这些扩展名的文件即使能被解码为文本，也需要额外验证
 SUSPICIOUS_EXTENSIONS = {
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.jpg', 
     '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg', '.mp3', 
@@ -46,12 +109,23 @@ SUSPICIOUS_EXTENSIONS = {
     '.7z', '.tar', '.gz', '.exe', '.dll', '.so', '.bin', '.iso', '.dat', '.db'
 }
 
+# 文本解码尝试的编码列表（按优先级排序）
+# 首先尝试 UTF-8（带 BOM 处理），失败后尝试 GB18030
+TEXT_ENCODINGS = [
+    ('utf-8-sig', 'ignore'),  # UTF-8 with BOM handling
+    ('gb18030', 'ignore'),    # Chinese encoding fallback
+]
+
+# --- ---- ---
+
 # --- 结构化结果定义 ---
 class Status(Enum):
     TEXT_SUCCESS = auto()
     NON_TEXT = auto()
     SKIPPED_LARGE = auto()
     SKIPPED_SUSPICIOUS_SHORT = auto()
+    SKIPPED_TEMP = auto()
+    SKIPPED_EXCLUDED_PATH = auto()
     FAILED = auto()
 
 @dataclass
@@ -62,6 +136,53 @@ class ProcessResult:
     error_message: Optional[str] = None
 
 # --- 核心逻辑函数 ---
+
+def should_exclude_path(file_path: str) -> bool:
+    """检查文件路径是否应该被排除"""
+    # 标准化路径分隔符
+    normalized_path = file_path.replace('\\', '/')
+    path_parts = normalized_path.split('/')
+    
+    for excluded in EXCLUDED_PATHS:
+        # 处理通配符模式
+        if '*' in excluded:
+            import fnmatch
+            if any(fnmatch.fnmatch(part, excluded) for part in path_parts):
+                return True
+        else:
+            # 处理多级路径匹配
+            excluded_parts = excluded.split('/')
+            
+            # 检查路径中是否存在连续匹配的部分
+            for i in range(len(path_parts) - len(excluded_parts) + 1):
+                if path_parts[i:i+len(excluded_parts)] == excluded_parts:
+                    return True
+    
+    return False
+
+def is_temp_file(file_path: str) -> bool:
+    """检查是否为临时文件"""
+    if not IGNORE_TEMP_FILES:
+        return False
+    
+    file_name = os.path.basename(file_path)
+    
+    # 检查文件名是否匹配临时文件模式
+    for pattern in TEMP_FILE_PATTERNS:
+        if pattern.startswith('.'):
+            # 扩展名匹配
+            if file_name.endswith(pattern):
+                return True
+        else:
+            # 文件名匹配
+            if file_name == pattern or pattern in file_name:
+                return True
+    
+    # 检查是否以 ~ 开头或结尾（临时文件常见标记）
+    if file_name.startswith('~') or file_name.endswith('~'):
+        return True
+    
+    return False
 
 def is_likely_garbage_text(text_sample: str) -> bool:
     """通过计算不可打印字符的比例来判断文本样本是否为二进制乱码。"""
@@ -75,23 +196,39 @@ def is_likely_garbage_text(text_sample: str) -> bool:
 def analyze_file(file_path: str) -> ProcessResult:
     """分析单个文件，返回一个包含所有信息的 ProcessResult 对象。"""
     try:
+        # 检查是否为排除路径
+        if should_exclude_path(file_path):
+            return ProcessResult(path=file_path, status=Status.SKIPPED_EXCLUDED_PATH)
+        
+        # 检查是否为临时文件
+        if is_temp_file(file_path):
+            return ProcessResult(path=file_path, status=Status.SKIPPED_TEMP)
+        
+        # 检查文件大小
         if os.path.getsize(file_path) > MAX_FILE_SIZE_BYTES:
             return ProcessResult(path=file_path, status=Status.SKIPPED_LARGE)
 
         content = None
-        try:
-            with open(file_path, "r", encoding="utf-8-sig") as f:
-                sample = f.read(GARBAGE_CHECK_SAMPLE_SIZE)
-                if is_likely_garbage_text(sample):
-                    return ProcessResult(path=file_path, status=Status.NON_TEXT)
-                content = sample + f.read()
-        except UnicodeDecodeError:
-            with open(file_path, "r", encoding="gb18030", errors="ignore") as f:
-                sample = f.read(GARBAGE_CHECK_SAMPLE_SIZE)
-                if is_likely_garbage_text(sample):
-                    return ProcessResult(path=file_path, status=Status.NON_TEXT)
-                content = sample + f.read()
+        decode_success = False
         
+        # 尝试多种编码读取文件
+        for encoding, errors in TEXT_ENCODINGS:
+            try:
+                with open(file_path, "r", encoding=encoding, errors=errors) as f:
+                    sample = f.read(GARBAGE_CHECK_SAMPLE_SIZE)
+                    if is_likely_garbage_text(sample):
+                        return ProcessResult(path=file_path, status=Status.NON_TEXT)
+                    content = sample + f.read()
+                    decode_success = True
+                    break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        # 如果所有编码都失败，标记为非文本
+        if not decode_success:
+            return ProcessResult(path=file_path, status=Status.NON_TEXT)
+        
+        # 检查可疑扩展名文件的内容长度
         _, extension = os.path.splitext(file_path)
         is_suspicious = extension.lower() in SUSPICIOUS_EXTENSIONS
         if is_suspicious and len(content) < MIN_SUSPICIOUS_TEXT_LEN:
@@ -104,7 +241,7 @@ def analyze_file(file_path: str) -> ProcessResult:
     except Exception as e:
         return ProcessResult(path=file_path, status=Status.NON_TEXT, error_message=str(e))
 
-# --- 新增：路径格式化辅助函数 ---
+# --- 路径格式化辅助函数 ---
 def truncate_path(path: str, max_len: int) -> str:
     """如果路径超过最大长度，则在中间用...缩短它。"""
     if len(path) <= max_len:
@@ -164,14 +301,14 @@ def main():
             status_map = {
                 Status.TEXT_SUCCESS: "✔  成功 (文本)",
                 Status.NON_TEXT: "🖼  成功 (二进制)",
-                Status.SKIPPED_LARGE: "🟡  跳过 (文件过大)",
-                Status.SKIPPED_SUSPICIOUS_SHORT: "🟡  跳过 (可疑且内容过短)",
+                Status.SKIPPED_LARGE: "🟡 跳过 (文件过大)",
+                Status.SKIPPED_SUSPICIOUS_SHORT: "🟡 跳过 (可疑且内容过短)",
+                Status.SKIPPED_TEMP: "⏭️  跳过 (临时文件)",
+                Status.SKIPPED_EXCLUDED_PATH: "⏭️  跳过 (排除路径)",
                 Status.FAILED: f"❌ 失败 ({res.error_message})"
             }
             status_str = status_map.get(res.status, "未知状态")
             
-            # --- 此处是唯一的修改点 ---
-            # 使用新函数格式化路径用于显示
             display_path = truncate_path(res.path, MAX_PATH_DISPLAY_LEN)
             print(f"{display_path} ===> {status_str}")
             
@@ -184,6 +321,8 @@ def main():
     text_results = []
     failed_files = []
     skipped_large_files = []
+    skipped_temp_files = []
+    skipped_excluded_files = []
     non_text_files_count = 0
 
     for res in results:
@@ -193,6 +332,10 @@ def main():
             failed_files.append((res.path, res.error_message))
         elif res.status == Status.SKIPPED_LARGE:
             skipped_large_files.append(res.path)
+        elif res.status == Status.SKIPPED_TEMP:
+            skipped_temp_files.append(res.path)
+        elif res.status == Status.SKIPPED_EXCLUDED_PATH:
+            skipped_excluded_files.append(res.path)
         else:
             non_text_files_count += 1
     
@@ -205,14 +348,16 @@ def main():
         print("\nℹ️ 未处理任何有效文本内容，剪贴板未改动。")
 
     print("\n----- 处理报告 -----")
-    print(f"✔️ 成功处理文本文件: {len(text_results)} 个")
+    print(f"✔️  成功处理文本文件: {len(text_results)} 个")
     print(f"🔩 处理为非文本文件: {non_text_files_count} 个")
-    print(f"⏭️ 因过大而跳过的文件: {len(skipped_large_files)} 个")
+    print(f"⏭️  因过大而跳过的文件: {len(skipped_large_files)} 个")
+    print(f"⏭️  跳过的临时文件: {len(skipped_temp_files)} 个")
+    print(f"⏭️  排除路径中的文件: {len(skipped_excluded_files)} 个")
     print(f"❌ 失败的文件或路径: {len(failed_files)} 个")
-    print(f"⏱️ 总耗时: {total_duration:.2f} 秒")
+    print(f"⏱️  总耗时: {total_duration:.2f} 秒")
 
     if skipped_large_files:
-        print("\n跳过的文件列表:")
+        print("\n跳过的大文件列表:")
         for path in skipped_large_files:
             print(f"  - {path}")
 
