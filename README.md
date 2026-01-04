@@ -1,87 +1,114 @@
-# 自用文本一键合并&复制工具
+# 文本合并工具 | Text Merge Tool
 
-一个命令行工具，用于快速合并一个或多个文件/文件夹的文本内容，并自动复制到系统剪贴板。
+**拖拽文件/文件夹 → 自动合并文本 → 一键复制到剪贴板**
 
-## 核心用法
-
-1.  将 `.py` 和 `.bat` 放到任意文件夹内。
-2.  **直接将任意文件或文件夹拖拽到 `mNc.bat` 文件上即可执行。**
-3.  (可选) 在资源管理器地址栏运行 `shell:sendto`，将 `mNc.bat` 文件的快捷方式粘贴进去，即可通过“右键 -> 发送到”的方式调用。
-
-<img width="930" height="466" alt="image" src="https://github.com/user-attachments/assets/09883392-7b97-4fb9-8641-5a0b840b435b" />
-
-## 主要特性
-
-- **并发处理**: 使用多线程并发读取文件，处理大量文件时速度很快。
-- **递归遍历**: 支持拖入文件夹，会自动递归遍历所有子文件。
-- **白名单机制**: 
-    - 采用严格的**白名单模式**，仅读取代码文件（如 `.py`, `.js`, `.java` 等）和常见文本格式。
-    - 自动过滤图片、视频、可执行文件等非文本内容。
-    - 默认排除项目构建产物（如 `node_modules`, `venv`, `__pycache__`）。
-- **智能输出**:
-    - 自动生成项目的**目录树结构**。
-    - 提供文件类型分布统计。
-    - 自动处理 `UTF-8` 和 `GBK` 编码。
-- **安全过滤**: 自动跳过体积过大的文件，防止程序崩溃。
-- **清晰报告**: 任务完成后，会统计成功、失败、跳过的文件数量和总耗时。
-
-## 依赖
-
-需要全局安装 `pyperclip` 库：
-```bash
-pip install pyperclip
-```
-
-## 配置
-
-主要的配置项都在 Python 脚本 (`cNm_... .py`) 顶部的 **常量定义** 区域，可根据需要自行修改：
-
-- `FORCE_TEXT_EXTENSIONS`: **核心配置**，定义允许读取的文件后缀白名单（支持 `*` 匹配无后缀文件）。
-- `EXCLUDED_PATHS`: 定义需要递归排除的文件夹名称（如 `.git`, `dist` 等）。
-- `MAX_FILE_SIZE_BYTES`: 修改要跳过的大文件阈值。
-- `MAX_PATH_DISPLAY_LEN`: 修改实时输出时路径的显示长度。
+Drag files/folders → Auto-merge text → Copy to clipboard
 
 ---
 
-# Personal Text Merge & Copy Tool
+## 快速开始 | Quick Start
 
-A command-line tool to quickly merge text content from one or more files/folders and automatically copy it to the system clipboard.
+1. **下载** `.py` 和 `.bat` 文件到任意文件夹
+2. **拖拽**文件或文件夹到 `mNc.bat` 上
+3. **完成** - 内容已自动复制到剪贴板并生成桌面文件
 
-## Core Usage
+<img width="930" height="466" alt="使用演示" src="https://github.com/user-attachments/assets/09883392-7b97-4fb9-8641-5a0b840b435b" />
 
-1.  Place the `.py` and `.bat` files in any folder.
-2.  **Simply drag and drop any files or folders onto the `mNc.bat` file to execute.**
-3.  (Optional) Run `shell:sendto` in the File Explorer address bar, then paste a shortcut of the `mNc.bat` file into the opened folder. This allows you to use the tool via the "Right-click -> Send to" context menu.
+### 可选：右键菜单快捷方式 | Optional: Context Menu
 
-<img width="930" height="466" alt="image" src="https://github.com/user-attachments/assets/09883392-7b97-4fb9-8641-5a0b840b435b" />
+在资源管理器地址栏运行 `shell:sendto`，将 `mNc.bat` 快捷方式放入，即可通过"右键 → 发送到"调用。
 
-## Key Features
+Run `shell:sendto` in File Explorer, paste the shortcut of `mNc.bat` to enable "Right-click → Send to".
 
-- **Concurrent Processing**: Utilizes multi-threading to read files concurrently, significantly speeding up the process for a large number of files.
-- **Recursive Traversal**: Supports dragging and dropping folders; it will automatically traverse all sub-files recursively.
-- **Whitelist Mechanism**:
-    - Uses a strict **Whitelist Mode**, processing only explicitly allowed code files (e.g., `.py`, `.js`, `.java`) and common text formats.
-    - Automatically ignores binaries like images, videos, and executables.
-    - Defaults to excluding build artifacts (e.g., `node_modules`, `venv`, `__pycache__`).
-- **Intelligent Output**:
-    - Generates a **Directory Tree** of the processed files.
-    - Provides file type distribution statistics.
-    - Automatically handles `UTF-8` and `GBK` encodings.
-- **Safety Filter**: Automatically skips oversized files to prevent the program from crashing.
-- **Clear Reporting**: After the task is completed, it provides a summary of successful, failed, and skipped files, along with the total time taken.
+---
 
-## Dependencies
+## 功能特性 | Features
 
-Requires the global installation of the `pyperclip` library:
+- ✅ **白名单模式**：仅处理代码和文本文件（`.py` `.js` `.java` `.md` 等）
+- ✅ **智能过滤**：自动排除 `node_modules` `venv` `.git` 等构建目录
+- ✅ **排除模式**：跳过 `.min.js` `.bundle.js` 等压缩文件（但仍显示在结构中）
+- ✅ **目录树**：自动生成项目结构图和文件统计
+- ✅ **多线程**：并发处理，快速高效
+- ✅ **智能编码**：自动处理 UTF-8 和 GBK 编码
+
+---
+
+## 依赖安装 | Dependencies
+
 ```bash
 pip install pyperclip
 ```
 
-## Configuration
+---
 
-The main configuration options are located in the **Constants Definition** section at the top of the Python script (`cNm_... .py`). You can modify them as needed:
+## 自定义配置 | Configuration
 
-- `FORCE_TEXT_EXTENSIONS`: **Core Config**. Defines the whitelist of allowed file extensions (supports `*` for files without extensions).
-- `EXCLUDED_PATHS`: Defines folder paths to strictly exclude (e.g., `.git`, `dist`).
-- `MAX_FILE_SIZE_BYTES`: Adjust the threshold for skipping large files.
-- `MAX_PATH_DISPLAY_LEN`: Change the display length for file paths in the real-time output.
+在 Python 脚本顶部修改以下配置项：
+
+Edit these constants at the top of the Python script:
+
+### 核心配置 | Core Settings
+
+```python
+# 允许读取的文件类型白名单
+FORCE_TEXT_EXTENSIONS = {
+    '.py', '.js', '.java', '.md', '.txt', '.json', ...
+}
+
+# 排除的文件模式（显示在树中但不读取内容）
+EXCLUDED_FILE_PATTERNS = [
+    '*.min.js',      # 压缩的 JS 文件
+    '*.min.css',     # 压缩的 CSS 文件
+    '*.bundle.js',   # 打包文件
+]
+
+# 排除的目录（完全不扫描）
+EXCLUDED_PATHS = [
+    'node_modules', 'venv', '.git', '__pycache__', ...
+]
+```
+
+### 其他配置 | Other Settings
+
+```python
+MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 单文件大小限制（默认 20MB）
+MAX_PATH_DISPLAY_LEN = 80               # 路径显示长度
+```
+
+---
+
+## 输出示例 | Output Example
+
+生成的文件包含：
+
+- 📊 项目统计信息（文件数量、类型分布）
+- 🌲 目录树结构
+- 📄 所有文本文件内容（带文件路径标记和修改时间）
+
+The generated file contains:
+
+- 📊 Project statistics (file count, type distribution)
+- 🌲 Directory tree structure
+- 📄 All text file contents (with file paths and timestamps)
+
+---
+
+## 工作原理 | How It Works
+
+1. **文件发现**：递归扫描拖入的文件/文件夹
+2. **智能过滤**：
+   - 跳过排除目录（如 `node_modules`）
+   - 跳过排除模式文件（如 `.min.js`）- 仅出现在树中
+   - 跳过非白名单文件（如 `.jpg` `.exe`）
+   - 跳过超大文件（默认 >20MB）
+3. **并发处理**：多线程读取和解码文件
+4. **智能输出**：
+   - 代码文件优先，文档文件在后
+   - 使用语言特定的注释符号标记文件路径
+5. **自动复制**：内容复制到剪贴板 + 生成桌面文件
+
+---
+
+## 许可 | License
+
+MIT License - 自由使用和修改 | Free to use and modify
