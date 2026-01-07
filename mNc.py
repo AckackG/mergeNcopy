@@ -71,6 +71,7 @@ EXCLUDED_FILE_PATTERNS = [
     '*.min.js',
     '*.min.css',
     '*.bundle.js',
+    'package-lock.json'
     # 可继续添加其他模式
 ]
 
